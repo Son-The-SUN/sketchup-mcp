@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
 from sketchup_mcp.connection import SketchUpConnection  # noqa: E402
 from sketchup_mcp.errors import SketchUpError  # noqa: E402
-from sketchup_mcp import compat, config  # noqa: E402
+from sketchup_mcp import compat, config, ports  # noqa: E402
 from sketchup_mcp.compat import EVAL_DISABLED_CODE  # noqa: E402  iter-1 SUGGESTION-1: shared constant
 
 
@@ -88,7 +88,9 @@ def parse(result: dict) -> dict:
 
 
 async def main() -> int:
-    conn = SketchUpConnection(host=config.HOST, port=config.PORT, timeout=30.0)
+    # SKETCHUP_MCP_PORT, else the first SketchUp that answers (sketchup_mcp.ports)
+    port = await ports.resolve_port() or ports.LEGACY_PORT
+    conn = SketchUpConnection(host=config.HOST, port=port, timeout=30.0)
     await conn.connect()
     step = 0
     eval_skipped = [0]   # mutable container — see iter-2 CONCERN-12 note

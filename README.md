@@ -86,9 +86,17 @@ All dimensions in **millimeters**; angles in **degrees**. Every entity-returning
 | Variable | Default | Description |
 |---|---|---|
 | `SKETCHUP_MCP_HOST` | `127.0.0.1` | Where to connect to the SketchUp extension |
-| `SKETCHUP_MCP_PORT` | `9876` | TCP port |
+| `SKETCHUP_MCP_PORT` | unset | TCP port. Unset, the server finds the running SketchUps (below); set, it talks to that port only |
 | `SKETCHUP_MCP_TIMEOUT` | `60` | Per-tool-call timeout (seconds) |
 | `SKETCHUP_MCP_LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARN` / `ERROR` |
+
+### Several SketchUps: one port per version and instance
+
+With `SKETCHUP_MCP_PORT` unset the server looks for SketchUp on `1<vv><nn>`: `1` for SketchUp, `vv` the two-digit version (`Sketchup.version`: SketchUp 2026 → `26`), `nn` the instance of that version from `01`. The first SketchUp 2026 is on `12601`, a second SketchUp 2026 on `12602`, the first SketchUp 2025 on `12501`. It checks instances `01`-`09` of every SketchUp installed under `Program Files\SketchUp` (2021-2030 when none is found), then the extension's default `9876` for a server started from the menu, and uses the first that answers; when that SketchUp closes it moves to the next one that answers.
+
+The `select_sketchup` tool lists the running SketchUps (port, version, instance, model title and path) and picks one by `version` (its first running instance) or `port`; with neither it goes back to the automatic choice.
+
+The extension itself still listens on its one configured port; the GroupGSA Claude plugin's autostart file (`gsa_mcp_autostart.rb` in the Plugins folder) starts each SketchUp's server on its first free `1<vv><nn>` port for that session, without changing the saved port.
 
 ### Ruby side (Settings dialog inside SketchUp)
 

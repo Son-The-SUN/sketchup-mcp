@@ -51,7 +51,10 @@ def _env_log_level(name: str, default: str) -> str:
     return raw
 
 
-PORT: int = _env_port("SKETCHUP_MCP_PORT", "9876")
+# None: find the running SketchUps (sketchup_mcp.ports); set, it fixes the port.
+PORT: int | None = (
+    _env_port("SKETCHUP_MCP_PORT", "") if os.getenv("SKETCHUP_MCP_PORT", "").strip() else None
+)
 HOST: str = os.getenv("SKETCHUP_MCP_HOST", "127.0.0.1")
 TIMEOUT: float = _env_timeout("SKETCHUP_MCP_TIMEOUT", "60")
 LOG_LEVEL: str = _env_log_level("SKETCHUP_MCP_LOG_LEVEL", "INFO")

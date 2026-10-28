@@ -41,7 +41,7 @@ def restore_config_after_module():
 
 def test_defaults(env_clean):
     cfg = reload_config()
-    assert cfg.PORT == 9876
+    assert cfg.PORT is None  # find the running SketchUps (sketchup_mcp.ports)
     assert cfg.HOST == "127.0.0.1"
     assert cfg.TIMEOUT == 60.0
     assert cfg.LOG_LEVEL == "INFO"
@@ -50,6 +50,11 @@ def test_defaults(env_clean):
 def test_port_override(env_clean, monkeypatch):
     monkeypatch.setenv("SKETCHUP_MCP_PORT", "8080")
     assert reload_config().PORT == 8080
+
+
+def test_blank_port_finds_sketchups(env_clean, monkeypatch):
+    monkeypatch.setenv("SKETCHUP_MCP_PORT", " ")
+    assert reload_config().PORT is None
 
 
 def test_log_level_normalized_to_upper(env_clean, monkeypatch):

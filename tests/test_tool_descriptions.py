@@ -9,7 +9,7 @@ import sketchup_mcp.tools  # noqa: F401 — регистрация тулов
 
 async def test_every_tool_parameter_has_description():
     tools = await mcp.list_tools()
-    assert len(tools) == 22
+    assert len(tools) == 23
     missing = []
     for tool in tools:
         for pname, pschema in tool.inputSchema.get("properties", {}).items():

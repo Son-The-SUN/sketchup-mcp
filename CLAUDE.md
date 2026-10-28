@@ -117,7 +117,7 @@ Log-level changes apply immediately. Enabling Ruby evaluation requires confirmin
 **Python (MCP server invoked by Claude)** — configured through ENV in the Claude Desktop MCP config:
 
 - `SKETCHUP_MCP_HOST` (default `127.0.0.1`) — where to connect to the SketchUp extension
-- `SKETCHUP_MCP_PORT` (default `9876`)
+- `SKETCHUP_MCP_PORT` (default unset: find the running SketchUps on `1<vv><nn>` — the first SketchUp 2026 on `12601`, a second on `12602` — for each installed version's instances 01-09, then `9876`; `ports.py`, `select_sketchup`). Set, it fixes the port.
 - `SKETCHUP_MCP_TIMEOUT` (default `60` seconds)
 - `SKETCHUP_MCP_LOG_LEVEL` (`DEBUG` / `INFO` / `WARN` / `ERROR`; default `INFO`)
 
@@ -142,6 +142,7 @@ JSON-RPC 2.0 envelopes; each MCP tool is a thin Python wrapper that builds a JSO
 | `config.py` | ENV-driven config |
 | `errors.py` | `SketchUpError` parsed from JSON-RPC error envelopes |
 | `server.py` | CLI entry point (`[project.scripts]` → `sketchup-mcp2`) |
+| `ports.py` | Finds the running SketchUps (`1<vv><nn>` instance ports, then 9876) and the port the tools use (`select_sketchup`) |
 | `compat.py` | Single source of truth for Python↔Ruby version compatibility (MIN_RUBY, check_ruby_version) |
 
 `eval_ruby` is the escape hatch — passes arbitrary Ruby code straight through.
@@ -170,7 +171,7 @@ All created geometry lives inside SketchUp **Groups** so it can be selected/move
 | Export | `export_scene` (skp / obj / dae / stl / png / jpg) |
 | Introspection | `get_model_info`, `list_components`, `get_component_info`, `find_components`, `list_layers`, `create_layer`, `get_selection`, `get_version` |
 | View | `get_viewport_screenshot` (returns MCP Image + JSON metadata text block; optional view_preset/style/zoom_extents; non-destructive by default; **requires SketchUp 2026+** — see below) |
-| Lifecycle | `undo` |
+| Lifecycle | `undo`, `select_sketchup` (which running SketchUp the tools use) |
 | Scripting | `eval_ruby` |
 
 > **SketchUp version requirement (viewport screenshot only):** the

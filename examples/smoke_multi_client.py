@@ -51,7 +51,7 @@ import asyncio, sys, time
 sys.path.insert(0, %(src_dir)r)
 
 from sketchup_mcp.connection import SketchUpConnection
-from sketchup_mcp import config
+from sketchup_mcp import config, ports
 
 WORKLOAD = %(workload)r
 LABEL    = %(label)r
@@ -59,7 +59,8 @@ LABEL    = %(label)r
 
 async def main():
     conn = SketchUpConnection(
-        host=config.HOST, port=config.PORT, timeout=config.TIMEOUT)
+        host=config.HOST, timeout=config.TIMEOUT,
+        port=await ports.resolve_port() or ports.LEGACY_PORT)
     await conn.connect()
     try:
         for step in WORKLOAD:
@@ -90,14 +91,15 @@ import asyncio, json, sys, time
 sys.path.insert(0, %(src_dir)r)
 
 from sketchup_mcp.connection import SketchUpConnection
-from sketchup_mcp import config
+from sketchup_mcp import config, ports
 
 LABEL = %(label)r
 
 
 async def main():
     conn = SketchUpConnection(
-        host=config.HOST, port=config.PORT, timeout=config.TIMEOUT)
+        host=config.HOST, timeout=config.TIMEOUT,
+        port=await ports.resolve_port() or ports.LEGACY_PORT)
     await conn.connect()
     try:
         ids = []

@@ -14,9 +14,9 @@ import json
 import logging
 import struct
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Awaitable, Callable
 
-from sketchup_mcp import compat, config
+from sketchup_mcp import compat, config, ports
 from sketchup_mcp.errors import IncompatibleVersionError, SketchUpError
 
 logger = logging.getLogger("sketchup_mcp.connection")
@@ -65,8 +65,11 @@ _RETRY_SAFE_TOOLS: frozenset[str] = frozenset(
 @dataclass
 class SketchUpConnection:
     host: str
-    port: int
+    port: int | None
     timeout: float
+    # find_port(rescan) -> port | None, asked before each (re)connect: set by
+    # get_connection when SKETCHUP_MCP_PORT is unset (ports.resolve_port).
+    find_port: Callable[[bool], Awaitable[int | None]] | None = field(default=None, repr=False)
     _reader: asyncio.StreamReader | None = None
     _writer: asyncio.StreamWriter | None = None
     _lock: asyncio.Lock | None = field(default=None, init=False, repr=False)
@@ -419,7 +422,33 @@ class SketchUpConnection:
 
         `_call` ловит только `ConnectionError`/`SketchUpError`. Без обёртки
         `socket.gaierror` (наследник `OSError`) утекал бы наружу при reconnect.
+
+        With ``find_port`` the port is found first: the SketchUp in use, else
+        the first that answers. When the one in use no longer answers (closed),
+        the ports are scanned again once and the next SketchUp is used.
         """
+        if self.find_port is None:
+            await self._open()
+            return
+        port = await self.find_port(False)
+        if port is not None:
+            self.port = port
+            try:
+                await self._open()
+                return
+            except ConnectionError:
+                port = await self.find_port(True)
+                if port is None or port == self.port:
+                    raise
+        if port is None:
+            raise ConnectionError(
+                f"no SketchUp MCP server answers on {self.host} "
+                f"(ports {ports.ranges(ports.candidate_ports())})"
+            )
+        self.port = port
+        await self._open()
+
+    async def _open(self) -> None:
         try:
             await self.connect()
         except OSError as e:
@@ -459,7 +488,8 @@ async def get_connection() -> SketchUpConnection:
     async with _get_connection_lock:
         if _connection is None:
             _connection = SketchUpConnection(
-                host=config.HOST, port=config.PORT, timeout=config.TIMEOUT
+                host=config.HOST, port=config.PORT, timeout=config.TIMEOUT,
+                find_port=None if config.PORT else ports.resolve_port,
             )
         return _connection
 

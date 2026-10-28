@@ -495,6 +495,8 @@ async def test_ensure_connected_raises_connection_error_when_refused(monkeypatch
     """Отказ TCP теперь всплывает из ensure_connected (как раньше из get_connection)."""
     from sketchup_mcp import connection as conn_module
 
+    # a fixed port: finding the SketchUps would connect to every candidate
+    monkeypatch.setattr(config, "PORT", 9876)
     monkeypatch.setattr(conn_module, "_connection", None)
     with patch(
         "sketchup_mcp.connection.asyncio.open_connection",
@@ -546,6 +548,8 @@ async def test_get_connection_cold_start_race_creates_singleton_once(monkeypatch
     """
     from sketchup_mcp import connection as conn_module
 
+    # a fixed port: finding the SketchUps would connect to every candidate
+    monkeypatch.setattr(config, "PORT", 9876)
     monkeypatch.setattr(conn_module, "_connection", None)
 
     open_call_count = 0

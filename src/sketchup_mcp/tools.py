@@ -12,9 +12,9 @@ from typing import Annotated, Literal, Optional
 from mcp.server.fastmcp import Context, Image
 from pydantic import AfterValidator, Field
 
-from sketchup_mcp import compat, config
+from sketchup_mcp import compat, config, ports
 from sketchup_mcp.app import mcp
-from sketchup_mcp.connection import get_connection
+from sketchup_mcp.connection import close_connection, get_connection
 from sketchup_mcp.errors import IncompatibleVersionError, SketchUpError, format_error
 
 logger = logging.getLogger("sketchup_mcp.tools")
@@ -880,3 +880,56 @@ async def get_version(ctx: Context) -> str:
 
     compatible = python_accepts_ruby and ruby_accepts_python
     return _payload(ruby_version, ruby_min, compatible, py_error or ruby_error)
+
+
+@mcp.tool()
+async def select_sketchup(
+    ctx: Context,
+    version: Annotated[
+        Optional[Annotated[str, Field(pattern=r"^\s*20\d\d\s*$")]],
+        Field(description='SketchUp year to use, e.g. "2026": its first running instance'),
+    ] = None,
+    port: Annotated[
+        Optional[Annotated[int, Field(ge=1, le=65535)]],
+        Field(description="MCP port to use: another instance (12602) or a SketchUp "
+                          "started from its menu on the extension's own port (9876)"),
+    ] = None,
+) -> str:
+    """List the running SketchUps and choose which one the tools talk to.
+
+    Each SketchUp's MCP server listens on 1<vv><nn>: its version and its
+    instance of that version, so the first SketchUp 2026 is on 12601 and a
+    second SketchUp 2026 on 12602 (one started from Plugins > MCP Server >
+    Start Server on the extension's own port, 9876). Without a choice the
+    tools use the first SketchUp that answers, so pick one whenever several
+    are open. Omit both to list the running SketchUps and go back to the
+    automatic choice.
+
+    Returns: JSON {status, running_sketchups[{port, version, instance,
+    title, path, server_version}], target{port, fixed_by_env, pinned},
+    warning?, note?}.
+    """
+    same_version: list[int] = []
+    if version and not port:
+        same_version = await ports.live_version_ports(version)
+        port = same_version[0] if same_version else ports.instance_port(version)
+    before = ports.current()
+    if port:
+        ports.pin(port)
+    else:
+        ports.unpin()
+        await ports.resolve_port(rescan=True)
+    if ports.current() != before:
+        # the next call connects to the chosen SketchUp
+        await close_connection()
+    running = await ports.running_sketchups()
+    result: dict = {"status": "success", "running_sketchups": running, "target": ports.current()}
+    if config.PORT:
+        result["warning"] = (f"SKETCHUP_MCP_PORT fixes the port to {config.PORT}; "
+                             f"remove it from the MCP server's environment to choose.")
+    elif port and not any(r["port"] == port for r in running):
+        result["warning"] = f"Nothing answers on port {port} yet."
+    if len(same_version) > 1:
+        result["note"] = (f"{len(same_version)} SketchUp {version.strip()} are open (ports "
+                          f"{', '.join(str(p) for p in same_version)}); pass port to use another.")
+    return json.dumps(result, indent=2)
